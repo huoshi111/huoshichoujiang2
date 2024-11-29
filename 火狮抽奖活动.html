@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抽奖网站</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-image: url('https://i.ibb.co/d77PR7q/image.jpg');
+            background-repeat: no-repeat;
+            background-position: center;
+            background-attachment: fixed;
+            background-size: cover;
+            background-color: black;
+            color: white;
+        }
+        .login {
+            background: rgba(0, 0, 0, 0.522);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+        .login input {
+            width: 80%;
+            padding: 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .login button {
+            width: 80%;
+            padding: 10px;
+            font-size: 16px;
+            background: #007BFF;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .login button:hover {
+            background: #0056b3;
+        }
+        .hidden {
+            display: none;
+        }
+        .lottery {
+            text-align: center;
+        }
+        #lottery-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-gap: 10px;
+            margin: 20px auto;
+        }
+        .lottery-item {
+            width: 100px;
+            height: 100px;
+            background-color: #ddd;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            transition: transform 0.3s;
+        }
+        .lottery-item img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        .result {
+            margin: 20px 0;
+        }
+        .history {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .history img {
+            width: 50px;
+            height: 50px;
+            margin: 0 5px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+        }
+        button:disabled {
+            background-color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="login" id="login-section">
+        <h1 style="color: rgb(113, 113, 113);">登录</h1>
+        <input type="text" id="username" placeholder="用户名">
+        <input type="password" id="password" placeholder="密码">
+        <button id="login-button">登录</button>
+        <p id="login-error" style="color: red; display: none;">用户名或密码错误</p>
+    </div>
+
+    <div class="lottery hidden" id="lottery-section">
+        <h1 style="color: rgb(43, 43, 43);">火狮 HUOSHI <br> 抽奖活动</h1>
+        <div id="lottery-grid">
+            <div class="lottery-item" data-item="奖品1"><img src="https://via.placeholder.com/100?text=1"></div>
+            <div class="lottery-item" data-item="奖品2"><img src="https://via.placeholder.com/100?text=2"></div>
+            <div class="lottery-item" data-item="奖品3"><img src="https://via.placeholder.com/100?text=3"></div>
+            <div class="lottery-item" data-item="奖品4"><img src="https://via.placeholder.com/100?text=4"></div>
+            <div class="lottery-item" data-item="奖品5"><img src="https://via.placeholder.com/100?text=5"></div>
+            <div class="lottery-item" data-item="奖品6"><img src="https://via.placeholder.com/100?text=6"></div>
+            <div class="lottery-item" data-item="奖品7"><img src="https://via.placeholder.com/100?text=7"></div>
+            <div class="lottery-item" data-item="奖品8"><img src="https://via.placeholder.com/100?text=8"></div>
+            <div class="lottery-item" data-item="奖品9"><img src="https://via.placeholder.com/100?text=9"></div>
+        </div>
+        <div class="result" id="result-section"></div>
+        <button id="draw-button">抽奖 (3/3)</button>
+        <div class="history" id="history-section"></div>
+    </div>
+
+    <script>
+        const users = [
+            { username: 'admin', password: '111aaa' },
+            { username: 'admin2', password: '111222' }
+        ];
+    
+        let currentUser = null;
+        const drawTimeout = 24 * 60 * 60 * 1000; // 24小时
+        const maxDraws = 3;
+    
+        const loginSection = document.getElementById('login-section');
+        const lotterySection = document.getElementById('lottery-section');
+        const loginButton = document.getElementById('login-button');
+        const drawButton = document.getElementById('draw-button');
+        const resultSection = document.getElementById('result-section');
+        const historySection = document.getElementById('history-section');
+        const loginError = document.getElementById('login-error');
+    
+        // 获取存储的抽奖数据
+        function getUserData(username) {
+            const data = localStorage.getItem(`lottery_${username}`);
+            return data ? JSON.parse(data) : { drawsLeft: maxDraws, lastDrawTime: null, history: [] };
+        }
+    
+        // 存储抽奖数据
+        function saveUserData(username, data) {
+            localStorage.setItem(`lottery_${username}`, JSON.stringify(data));
+        }
+    
+        loginButton.addEventListener('click', () => {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+    
+            const user = users.find(u => u.username === username && u.password === password);
+            if (user) {
+                currentUser = user;
+                const userData = getUserData(username);
+    
+                // 检查冷却时间
+                if (userData.lastDrawTime && Date.now() - userData.lastDrawTime < drawTimeout) {
+                    disableDrawButton(`抽奖 (0/0)`);
+                } else {
+                    // 冷却时间过后，重置抽奖次数
+                    userData.drawsLeft = maxDraws;
+                    userData.lastDrawTime = null;
+                    userData.history = [];
+                    saveUserData(username, userData);
+                }
+    
+                loginSection.classList.add('hidden');
+                lotterySection.classList.remove('hidden');
+                resetLottery(userData);
+            } else {
+                loginError.style.display = 'block';
+            }
+        });
+    
+        drawButton.addEventListener('click', () => {
+            const userData = getUserData(currentUser.username);
+            if (userData.drawsLeft > 0) {
+                const targetIndex = Math.floor(Math.random() * 9); // 指定目标奖品索引 (0~8)
+                startDrawAnimation(userData, targetIndex);
+            }
+        });
+    
+        function resetLottery(userData) {
+            const { drawsLeft, history } = userData;
+    
+            // 更新按钮和抽奖次数显示
+            resultSection.innerHTML = '';
+            updateHistory(history);
+            drawButton.textContent = `抽奖 (${drawsLeft}/${maxDraws})`;
+            drawButton.disabled = drawsLeft === 0;
+        }
+    
+        function startDrawAnimation(userData, targetIndex) {
+            const items = document.querySelectorAll('.lottery-item');
+            let index = 0;
+            const totalCycles = 3; // 动画循环次数
+            const totalSteps = totalCycles * items.length + targetIndex; // 确保最终停在目标奖品
+            let step = 0;
+    
+            const interval = setInterval(() => {
+                items.forEach(item => item.style.transform = '');
+                items[index].style.transform = 'scale(1.5)';
+    
+                index = (index + 1) % items.length;
+                step++;
+    
+                // 减速机制
+                if (step > totalSteps - items.length) {
+                    clearInterval(interval);
+                    const slowdownInterval = setInterval(() => {
+                        items.forEach(item => item.style.transform = '');
+                        items[index].style.transform = 'scale(1.5)';
+                        
+                        if (index === targetIndex && step >= totalSteps) {
+                            clearInterval(slowdownInterval);
+                            finishDraw(items[targetIndex], userData); // 确保最终停在目标奖品
+                        }
+    
+                        index = (index + 1) % items.length;
+                        step++;
+                    }, 200); // 慢速部分间隔增加
+                }
+            }, 100);
+        }
+    
+        function finishDraw(selectedItem, userData) {
+            const prize = selectedItem.getAttribute('data-item');
+            resultSection.innerHTML = `<h2>你中了：${prize}</h2>`;
+            
+            // 更新历史
+            userData.history.push(selectedItem.querySelector('img').src);
+            updateHistory(userData.history);
+    
+            // 扣除抽奖次数
+            userData.drawsLeft--;
+            if (userData.drawsLeft === 0) {
+                userData.lastDrawTime = Date.now();
+            }
+            saveUserData(currentUser.username, userData);
+    
+            // 更新按钮状态
+            drawButton.textContent = `抽奖 (${userData.drawsLeft}/${maxDraws})`;
+            drawButton.disabled = userData.drawsLeft === 0;
+        }
+    
+        function disableDrawButton(message) {
+            drawButton.textContent = message;
+            drawButton.disabled = true;
+        }
+    
+        function updateHistory(history) {
+            historySection.innerHTML = history.map(src => `<img src="${src}" alt="" style="width:50px;height:50px;margin:5px;">`).join('');
+        }
+    </script>
+    
+</body>
+</html>
